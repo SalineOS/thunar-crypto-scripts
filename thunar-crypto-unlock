@@ -1,0 +1,199 @@
+#!/bin/bash
+# Licensed under the GNU General Public License Version 2
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+####################################################################################################
+## Authored by Anthony Nordquist. https://github.com/SalineOS salinelinux@gmail.com 
+## Copyright 2013 Anthony Nordquist
+
+Input="$@"
+
+## Set some options for yad
+WindowIcon=( "--window-icon=changes-allow" )
+Icon=( "--image=changes-allow" )
+Title=( "--title=Thunar Crypto" )
+Align=( "--text-align=center" )
+
+
+## Load translations
+
+LanguageLess="$(echo "$LANG" | awk -F '.' '{print $1}')"
+
+if [ -f /etc/thunar-crypto/Translations/$LanguageLess ]; then
+ . /etc/thunar-crypto/Translations/$LanguageLess
+else
+ . /etc/thunar-crypto/Translations/en_US
+fi
+
+GetPassphrase () {
+
+## Get a passphrase from the user
+Pass="$(yad "${Title[@]}" --text="$DEPASS\n" --wrap --hide-text --width=315 --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "3" ]; then
+ exit
+fi
+
+## The passphrase cannot be blank.
+if [ "$Pass" = "" ]; then
+ yad "${Title[@]}" --image="error" --window-icon="error" --text="\n$CBLANK.\n" --button=$"gtk-ok:1"
+ GetPassphrase
+fi
+
+}
+
+
+GetPassphrase
+
+## Ask if we should remove asc file after decryption
+yad "${Title[@]}" "${Icon[@]}" "${WindowIcon[@]}" --width="225" --wrap --text="$REMOVEASC" --button=$"gtk-no:3" --button=$"gtk-yes:5"
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "5" ]; then
+ RemoveASC="True"
+fi
+
+RunDecrypt () {
+
+## Get the total size of the asc for progress bar coming up
+InputSize=$(du -chsk --apparent-size "$Input" | grep "total" | awk '{print$1}')
+
+## Account for the file being 25% bigger because of being in armor format
+InputSize=$(echo "$InputSize * .74" | bc -l)
+
+## Put password in an array
+Pass=( "$Pass" )
+
+## Test that the passphrase is correct 
+tail -f /usr/bin/thunar-crypto-unlock | yad --progress --pulsate --auto-close --no-buttons --wrap --width="300" --text-align="center" "${Title[@]}" "${WindowIcon[@]}" --text="$CHECKINGPASSPHRASE" &
+
+echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --dry-run "$Input">/dev/null
+
+ret="$?"
+
+ToKill=$(pgrep -f "tail -f /usr/bin/thunar-crypto-unlock")
+
+kill "$ToKill"
+
+if [ "$ret" = "2" ]; then
+ yad --window-icon="error" "${Title[@]}" --image="error" --button=$"gtk-quit:3" --button=$"gtk-ok:5" --text="$WRONGPASS"
+
+ ret="$?"
+
+ if [ "$ret" = "5" ]; then
+  GetPassphrase
+  RunDecrypt
+  exit
+ elif [ "$ret" = "252" ]; then
+  notify-send -u normal -i error -t 15000 "
+$OPERATIONCANCELED
+
+"
+  exit
+ elif [ "$ret" = "3" ]; then
+  notify-send -u normal -i error -t 15000 "
+$OPERATIONCANCELED
+
+"
+  exit
+ fi
+fi
+
+## Check that we have write permissions
+TestFile="TCU-$RANDOM"
+touch ./.$TestFile
+
+ret="$?"
+
+if [ "$ret" = "1" ]; then
+ yad "${Title[@]}" --window-icon="error" --image="error" --width="275" --wrap --button=$"gtk-quit" --text="$NOPERMISSION"
+ exit
+fi
+
+## Remove testfile
+rm -rf ./."$TestFile"
+
+## Decrypt the .tar.asc file to the current directory.
+echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --no-tty "$Input" | tar -xv &
+
+## Start progress bar
+
+sleep 3
+
+(while [ "$(pgrep -f "tar -xv")" != "" ]
+do
+
+sleep 2
+
+## Get the directory name
+Directory=$(echo "$Input" | awk -F '.tar' '{print $1}')
+
+## Calculate size of directory 
+DirectorySizeStart=$(du -chsk --apparent-size "$Directory" | grep "total" | awk '{print$1}')
+
+DirectorySize=$(echo "$DirectorySizeStart" | awk '{print $1}')
+
+TempNumber=$(echo "$DirectorySize / $InputSize * 100" | bc -l)
+
+if [ "$(echo "$TempNumber" | grep '.')" != "" ]; then
+ TempNumber=$(echo "$TempNumber" | awk -F '.' '{print $1}')
+fi
+
+echo "$TempNumber"
+
+done) | yad --progress --auto-close --wrap --width="250" "${Icon[@]}" "${Title[@]}" "${WindowIcon[@]}" --text="$DEPROGRESS\n" --button=$"gtk-cancel:9"
+
+## Exit nicely if the user closes the progress bar
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ pkill -P $(pgrep -f "/usr/bin/thunar-crypto-unlock $Input")
+ rm -rf "$(echo "$Input" | awk -F '.tar' '{print $1}')"
+ notify-send -u normal -i error -t 35000 "
+$OPERATIONCANCELED
+
+"
+ exit
+elif [ "$ret" = "9" ]; then
+ pkill -P $(pgrep -f "/usr/bin/thunar-crypto-unlock $Input")
+ rm -rf "$(echo "$Input" | awk -F '.tar' '{print $1}')"
+ notify-send -u normal -i error -t 35000 "
+$OPERATIONCANCELED
+
+"
+ exit
+fi
+
+if [ "$RemoveASC" = "True" ]; then
+ rm -rf "$Input"
+fi
+
+## Tell the user we are done. 
+notify-send -u normal -i changes-allow -t 35000 "
+$DECOMPLETE"
+
+}
+
+RunDecrypt
+
+# 
+exit

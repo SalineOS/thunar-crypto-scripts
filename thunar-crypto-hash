@@ -1,0 +1,220 @@
+#!/bin/bash
+# Licensed under the GNU General Public License Version 2
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+####################################################################################################
+## Authored by Anthony Nordquist. https://github.com/SalineOS salinelinux@gmail.com 
+## Copyright 2013 Anthony Nordquist
+
+## Set variable of input
+Input="$@"
+
+## Create arrays for yad options
+WindowIcon=( "--window-icon=info" )
+Icon=( "--image=info" )
+Title=( "--title=Thunar Crypto" )
+Align=( "--text-align=center" )
+
+## Load translations
+
+LanguageLess="$(echo "$LANG" | awk -F '.' '{print $1}')"
+
+if [ -f /etc/thunar-crypto/Translations/$LanguageLess ]; then
+ . /etc/thunar-crypto/Translations/$LanguageLess
+else
+ . /etc/thunar-crypto/Translations/en_US
+fi
+
+AvailableHashes=$(gpg --version | grep "Hash" | awk -F 'Hash: ' '{print $2}' | sed -e 's|,||g')
+
+for i in $AvailableHashes; do
+ if [ "$i" = "SHA1" ]; then
+  State="TRUE"
+ elif [ "$i" = "MD5" ]; then
+  State="TRUE"
+ else 
+  State="FALSE"
+ fi
+HashesTemp="$HashesTemp $State $i"
+done
+
+Hashes=$(yad --list --text="$PLEASESELECT\n" --width="225" --print-column="2" --height="350"  --no-headers --checklist --column="boxes" --column="Hashes" "${WindowIcon[@]}" "${Align[@]}" "${Title[@]}" --button=$"gtk-quit:3" --button=$"gtk-ok:2" $HashesTemp)
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "3" ]; then
+ exit
+fi
+
+## Cleanup hashes
+Hashes=$(echo "$Hashes" | sed -e 's/|/ /g')
+
+## Error out if the user didn't leave any hashes selected
+if [ "$Hashes" = "" ]; then
+ yad --window-icon="error" --image="error" --wrap --button=$"gtk-exit:1" --text="$NOHASHES"
+ exit
+fi
+
+## Create a progress bar
+tail -f /usr/bin/thunar-crypto-hash | yad "${WindowIcon[@]}" "${Icon[@]}" "${Align[@]}" "${Title[@]}" --progress --width="325" --no-buttons --auto-close --pulsate --text="$GENHASH\n" &
+
+sleep 1
+
+ToKill=$(pgrep -f "tail -f /usr/bin/thunar-crypto-hash")
+
+## Create temp working directory
+mkdir -p /tmp/thunar-crypto-hash
+
+## Determine how many hashes we are running
+for i in $Hashes; do
+ if [ "$Count" = "" ]; then 
+  Count="1"
+ else
+  Count=$(( $Count + 1 ))
+ fi
+done
+
+## Magical loops
+ 
+for i in "$@"; do
+
+ FileName="$i"
+
+for i in $Hashes; do
+
+## Actually generate the hashes
+ CurrentHash=$(gpg --print-md "$i" "$FileName" | awk '{print tolower ($0)}' | sed -e 's| ||g' | awk -F ':' '{print $2}')
+
+## Use lower case letters for saving the checksum file
+ Extension=$(echo "$i" | awk '{print tolower ($0)}')
+
+if [ ! -f "/tmp/thunar-crypto-hash/$FileName.$Extension" ]; then
+ echo -n "$CurrentHash $FileName">>"/tmp/thunar-crypto-hash/$FileName.$Extension"
+fi
+
+## Use the above $Count and now recount to add an aditional line break between hashes for different file names
+if [ "$Recount" = "" ]; then
+  Recount="1"
+ else
+  Recount=$(( $Recount + 1 ))
+fi
+
+## Store the hashes in array for displaying to user
+
+if [ "$Count" = "$Recount" ]; then
+ Recount=""
+ MasterArray=("${MasterArray[@]}""$CurrentHash" "$FileName" "$i"'
+
+
+
+')
+else
+ MasterArray=("${MasterArray[@]}""$CurrentHash" "$FileName" "$i" '
+
+')
+fi
+
+done
+
+done
+
+sleep 3
+
+## Kill the progress bar
+kill $ToKill
+
+## Function to save the hashes if required
+
+SaveHashes () {
+
+Destination=$(yad "${Title[@]}" "${Align[@]}" "${WindowIcon[@]}" --file-selection --height="450" --width="600" --directory --filename="$(pwd)" --text="$SELECTDESTINATION\n" --button=$"gtk-quit:3" --button=$"gtk-ok:2")
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "3" ]; then
+ exit
+elif [ "$Destination" = "" ]; then
+ yad "${Title[@]}" --window-icon="error" --image="error" --text="$NODESTINATION\n" --button=$"gtk-quit:3" --button=$"gtk-ok:5"
+
+ ret="$?"
+
+ if [ "$ret" = "252" ]; then
+  rm -rf /tmp/thunar-crypto-hash
+  exit
+ elif [ "$ret" = "3" ]; then
+  rm -rf /tmp/thunar-crypto-hash
+  exit
+ elif [ "$ret" = "5" ]; then
+  SaveHashes
+  exit
+ fi
+fi
+
+## Check to make sure we have write permission to the directory
+TestFile="TCH-$RANDOM"
+touch "$Destination/.$TestFile"
+
+ret="$?"
+
+if [ "$ret" = "1" ]; then
+ yad "${Title[@]}" --window-icon="error" --image="error" --width="275" --wrap --button=$"gtk-ok" --text="$NOPERMISSION1 $Destination.\n"
+ SaveHashes
+ exit
+fi
+
+## Remove testfile
+rm -rf "$Destination/.$TestFile"
+
+## Show progress bar for saving hashes, this is really only useful if we are hashing 100+ files
+
+tail -f /usr/bin/thunar-crypto-hash | yad "${WindowIcon[@]}" "${Icon[@]}" "${Align[@]}" "${Title[@]}" --progress --width="325" --no-buttons --auto-close --pulsate --text="$SAVINGHASHES $Destination.\n" &
+
+ToKill=$(pgrep -f "tail -f /usr/bin/thunar-crypto-hash")
+
+cp -f /tmp/thunar-crypto-hash/* "$Destination"
+
+sleep 5
+
+## Kill the progress bar
+kill $ToKill
+
+## Use notification daemon to tell user we are done
+notify-send -u normal -i info -t 35000 "
+$HASHS 
+$Destination"
+
+
+}
+
+
+## Display hashes to the user
+echo -n "${MasterArray[@]}" | yad --editable --text-info --width="700" --height="700" "${Title[@]}" "${Align[@]}" "${WindowIcon[@]}" --button=$"gtk-quit:3" --button=$"gtk-save:7" 
+
+ret="$?"
+
+if [ "$ret" = "7" ]; then
+ SaveHashes
+fi
+
+## Cleanup temp directory
+rm -rf /tmp/thunar-crypto-hash
+
+# 
+
+exit  

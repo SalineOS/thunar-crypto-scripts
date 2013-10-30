@@ -1,0 +1,199 @@
+#!/bin/bash
+# Licensed under the GNU General Public License Version 2
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+####################################################################################################
+## Authored by Anthony Nordquist. https://github.com/SalineOS salinelinux@gmail.com 
+## Copyright 2013 Anthony Nordquist
+
+Directory="$@"
+
+WindowIcon=( "--window-icon=changes-prevent" )
+Icon=( "--image=changes-prevent" )
+Title=( "--title=Thunar Crypto" )
+Align=( "--text-align=center" )
+
+## Load translations
+
+LanguageLess="$(echo "$LANG" | awk -F '.' '{print $1}')"
+
+if [ -f /etc/thunar-crypto/Translations/$LanguageLess ]; then
+ . /etc/thunar-crypto/Translations/$LanguageLess
+else
+ . /etc/thunar-crypto/Translations/en_US
+fi
+
+## Error out if the encrypted file or tarfile exists
+if [ -f "$Directory.tar.asc" ]; then
+ yad "${Title[@]}" --window-icon="error" --image="error" --text="\n$Directory.tar.asc $VEXISTS.\n" --button=$"gtk-quit:3"
+ exit
+elif [ -f "$Directory.tar" ]; then
+  yad "${Title[@]}" --window-icon="error" --image="error" --text="\n$Directory.tar $VEXISTS.\n" --button=$"gtk-quit:3"
+ exit
+fi
+
+## Check to make sure we have write permission to the directory
+TestFile="TCL-$RANDOM"
+touch "./.$TestFile"
+
+ret="$?"
+
+if [ "$ret" = "1" ]; then
+ yad "${Title[@]}" --window-icon="error" --image="error" --width="275" --wrap --button=$"gtk-quit" --text="$NOPERMISSION2\n"
+ exit
+fi
+
+## Remove testfile
+rm -rf "./.$TestFile"
+
+GetPassphrase () {
+
+## Get a passphrase from the user
+Pass="$(yad "${Title[@]}" --text="$PASSTEXT" --wrap --hide-text --width="315" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "3" ]; then
+ exit
+fi
+
+
+## The passphrase cannot be blank.
+if [ "$Pass" = "" ]; then
+ yad "${Title[@]}" --image="error" --window-icon="error" --text="\n$CBLANK.\n" --button=$"gtk-ok:1"
+ GetPassphrase
+fi
+
+
+## Make the user retype the passphrase. We don't want people losing important information to a typo.
+Pass1="$(yad "${Title[@]}" --text="$PASSTEXT1.\n" --wrap --hide-text --width="315" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "3" ]; then
+ exit
+fi
+
+## Error out of the passphrases do not match
+if [ "$Pass" != "$Pass1" ]; then
+ yad "${Title[@]}" --image="error" --window-icon="error" --text="\n$NOMATCH.\n" --button=$"gtk-ok:1"
+ GetPassphrase
+fi 
+
+}
+
+GetPassphrase
+
+## Ask if we should remove the files after encryption
+yad "${Title[@]}" "${Icon[@]}" --width="275" --wrap --text="$REMOVEFILES" --button=$"gtk-no:3" --button=$"gtk-yes:5"
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "5" ]; then
+ RemoveDirectory="True"
+fi
+
+## Get the total size of the directory for progress bar coming up
+DirectorySize=$(du -chsk --apparent-size "$Directory" | grep "total" | awk '{print$1}')
+
+## Put password in an array
+Pass=( "$Pass" )
+
+## Tar the directory
+tail -f /usr/bin/thunar-crypto-lock | yad --width="350" --progress "${Title[@]}" "${WindowIcon[@]}" "${Align[@]}" --pulsate --auto-close --no-buttons --text="$CREATEARCHIVE\n" &
+
+tar -c "$Directory" >>"$Directory.tar"
+
+sleep 3
+
+## Kill Progress bar
+TailPID=$(pgrep -f "tail -f /usr/bin/thunar-crypto-lock")
+
+kill $TailPID
+
+## Encrypt the newly created tar file with GPG
+echo "${Pass[@]}" | gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --armor --batch --no-tty --yes --passphrase-fd 0 $Directory.tar &
+
+## Start progress bar
+
+sleep 2
+
+(while [ "$(pgrep -f 'gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --armor --batch --no-tty --yes --passphrase-fd 0')" != "" ]
+do
+
+sleep 2
+
+ASCSize=$(du -chsk --apparent-size "$Directory.tar.asc" | grep "total" | awk '{print$1}')
+
+
+## Send a percentage to the yad progress bar and account for files being 25% bigger because of converting to armor
+ASCSize=$(echo "$ASCSize * .74" | bc -l)
+
+TempNumber=$(echo "$ASCSize / $DirectorySize * 100" | bc -l)
+
+if [ "$(echo "$TempNumber" | grep '.')" != "" ]; then
+ TempNumber=$(echo "$TempNumber" | awk -F '.' '{print $1}')
+fi
+
+echo "$TempNumber"
+
+done) | yad "${Title[@]}" --wrap --width="325" --progress "${Icon[@]}" "${WindowIcon[@]}" --text="$CREATEV\n" --auto-close --button=$"gtk-cancel:9"
+
+ret="$?"
+
+## Exit cleanly if the user cancels the operation
+if [ "$ret" = "252" ]; then
+ pkill -P $(pgrep -f "/usr/bin/thunar-crypto-lock $Directory")
+ rm -rf "$Directory.tar"
+ rm -rf "$Directory.tar.asc"
+ notify-send -u normal -i error -t 35000 "
+$OPERATIONCANCELED
+
+"
+ exit
+elif [ "$ret" = "9" ]; then
+ pkill -P $(pgrep -f "/usr/bin/thunar-crypto-lock $Directory")
+ rm -rf "$Directory.tar"
+ rm -rf "$Directory.tar.asc"
+ notify-send -u normal -i error -t 35000 "
+$OPERATIONCANCELED
+
+"
+ exit
+fi
+
+
+sleep 2
+
+## Cleanup .tar file
+rm -rf "$Directory.tar"
+
+## Remove the file if requested
+if [ "$RemoveDirectory" = "True" ]; then
+ rm -rf "$Directory"
+fi
+
+## Tell the user we are done. 
+notify-send -u normal -i changes-prevent -t 25000 "
+$CVDONE $Directory.tar.asc $CVDONE1"
+
+# 
+exit

@@ -1,0 +1,100 @@
+#!/bin/bash
+# Licensed under the GNU General Public License Version 2
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+####################################################################################################
+## Authored by Anthony Nordquist. https://github.com/SalineOS salinelinux@gmail.com 
+## Copyright 2013 Anthony Nordquist
+
+## Set variable of input
+Input="$@"
+
+## Create arrays for yad options
+
+WindowIcon=( "--window-icon=info" )
+Icon=( "--image=info" )
+Title=( "--title=Thunar Crypto" )
+Align=( "--text-align=center" )
+
+## Parse the hash and filename
+InputHash=$(cat "$Input" | awk '{print $1}')
+InputFilename=$(cat "$Input" | awk '{$1="";print}' | sed -e 's| ||1')
+
+## Load translations
+
+LanguageLess="$(echo "$LANG" | awk -F '.' '{print $1}')"
+
+if [ -f /etc/thunar-crypto/Translations/$LanguageLess ]; then
+ . /etc/thunar-crypto/Translations/$LanguageLess
+else
+ . /etc/thunar-crypto/Translations/en_US
+fi
+
+## Determine what hash we were sent and make it uppercase
+HashAlgo=$(echo "$Input" | awk -F '.' '{print $NF}' | awk '{print toupper ($0)}')
+
+## Check to see if the file exists in the current folder, if not ask the user to supply it
+
+if [ -f "$InputFilename" ]; then
+ ToHash="$InputFilename"
+else
+ ## Determine the file type of passed input so we can set a file filter in yad
+if [ "$(echo "$InputFilename" | grep "\.")" != "" ]; then
+ FileType="$(echo "$InputFilename" | awk -F '.' '{print $NF}')"
+fi
+
+## If there is no file extension on the file, then don't set a filter
+if [ "$FileType" != "" ]; then
+ FileFilter=( "--file-filter=$FileType | *.$FileType" )
+fi
+
+ ToHash=$(yad "${Title[@]}" "${WindowIcon[@]}" "${Align[@]}" "${FileFilter[@]}" --file-selection --height="600" --width="700" --filename="$HOME/"  --text="File $SELECTFILE\n" --button=$"gtk-quit:3" --button=$"gtk-ok:2")
+
+ret="$?"
+
+if [ "$ret" = "252" ]; then
+ exit
+elif [ "$ret" = "3" ]; then
+ exit
+elif [ "$ToHash" = "" ]; then
+ yad "${Title[@]}" --window-icon="error" --image="error" --text="$NOFILE\n" --button=$"gtk-quit:3" 
+
+ exit
+fi
+fi
+
+## Start progress bar
+tail -f /usr/bin/thunar-crypto-vchecksum | yad "${WindowIcon[@]}" "${Icon[@]}" "${Title[@]}" --progress --width="325" --wrap --no-buttons --auto-close --pulsate --text="$GENANDCHECK $HashAlgo of $ToHash\n" &
+
+ToKill=$(pgrep -f "tail -f /usr/bin/thunar-crypto-vchecksum")
+
+NewHash=$(gpg --print-md "$HashAlgo" "$ToHash" | awk '{print tolower ($0)}' | sed -e 's| ||g' | awk -F ':' '{print $NF}' | tr -d '\n')
+
+sleep 3
+
+## Kill progress bar
+kill "$ToKill"
+
+## Inform the user of the result
+
+if [ "$NewHash" = "$InputHash" ]; then
+ yad --image="gtk-yes" --window-icon="gtk-yes" "${Title[@]}" --text="$HASHESMATCH.   \n\n$InputHash\n$NewHash\n" --button=$"gtk-ok:1"
+ exit
+else
+ yad --image="gtk-no" --window-icon="gtk-no" "${Title[@]}" --text="$HASHMISMATCH.   \n\n$InputHash\n$NewHash\n" --button=$"gtk-ok:1"
+ exit
+fi 
+
+exit

@@ -1,0 +1,73 @@
+export VEXISTS="already exists"
+
+export TVERROR="Error"
+
+export TVCREATE="Create"
+
+export PASSTEXT="Please enter a passphrase, you will need this to decrypt your file or directory"
+
+export PASSTEXT1="Please re-enter the passphrase"
+
+export CBLANK="Passphrase cannot be blank"
+
+export NOMATCH="Passphrases do not match"
+
+export CREATEV="Encrypting $Directory.tar to $Directory.tar.asc now, please wait."
+
+export CVDONE="Creation of"
+
+export CVDONE1="Completed"
+
+export TVNOW="now"
+
+export REMOVEFILES="Delete $Directory after encryption?"
+
+export TVPASS="Passphrase"
+
+export DEOPEN="Open"
+
+export DEPASS="Enter the passphrase."
+
+export REMOVEASC="Would you like to delete $Input after decryption?"
+
+export DEPROGRESS="Decrypting $Input now, please wait."
+
+export DECOMPLETE="Decryption of $Input complete."
+
+export CHECKINGPASSPHRASE="Checking the passphrase."
+
+export OPERATIONCANCELED="Decryption Cancelled"
+
+export NOPERMISSION="Cannot decrypt file to $(pwd), permission denied."
+
+export NOPERMISSION1="Cannot save hashes, no write permission to"
+
+export NOPERMISSION2="Cannot ecrypt file to $(pwd), permission denied."
+
+export WRONGPASS="The provided passphrase was not correct"
+
+export CREATEARCHIVE="Creating $Directory.tar"
+
+export GENHASH="Generating hashes now, please wait."
+
+export PLEASESELECT="Select the hashes you wish to use generate"
+
+export NOHASHES="No hashes selected for use"
+
+export SELECTDESTINATION="Please select the directory to save hash files to"
+
+export NODESTINATION="No destination selected."
+
+export HASHS="Hashes saved to"
+
+export SAVINGHASHES="Saving hash files to "
+
+export SELECTFILE="$InputFilename not found in current directory, please select it."
+
+export NOFILE="No file selected."
+
+export GENANDCHECK="Generating and checking"
+
+export HASHESMATCH="File verification complete, checksums match"
+
+export HASHMISMATCH="File verification failed, checksums do not match"
