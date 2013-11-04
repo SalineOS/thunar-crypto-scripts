@@ -61,24 +61,21 @@ fi
 
 GetPassphrase
 
-## Ask if we should remove asc file after decryption
-yad "${Title[@]}" "${Icon[@]}" "${WindowIcon[@]}" --width="225" --wrap --text="$REMOVEASC" --button=$"gtk-no:3" --button=$"gtk-yes:5"
+## Ask if we should remove gpg file after decryption
+yad "${Title[@]}" "${Icon[@]}" "${WindowIcon[@]}" --width="285" --wrap --text="$REMOVEASC" --button=$"gtk-no:3" --button=$"gtk-yes:5"
 
 ret="$?"
 
 if [ "$ret" = "252" ]; then
  exit
 elif [ "$ret" = "5" ]; then
- RemoveASC="True"
+ RemoveGPG="True"
 fi
 
 RunDecrypt () {
 
-## Get the total size of the asc for progress bar coming up
+## Get the total size of the gpg file for progress bar coming up
 InputSize=$(du -chsk --apparent-size "$Input" | grep "total" | awk '{print$1}')
-
-## Account for the file being 25% bigger because of being in armor format
-InputSize=$(echo "$InputSize * .74" | bc -l)
 
 ## Put password in an array
 Pass=( "$Pass" )
@@ -132,27 +129,26 @@ fi
 ## Remove testfile
 rm -rf ./."$TestFile"
 
-## Decrypt the .tar.asc file to the current directory.
-echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --no-tty "$Input" | tar -xv &
+OutputFile=$(echo "$Input" | awk -F '.tar.gpg' '{print $1}')
+
+## Decrypt the .tar.gpg file to the current directory.
+echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --no-tty "$Input" | tar -xv -O>>"$OutputFile" &
 
 ## Start progress bar
 
 sleep 3
 
-(while [ "$(pgrep -f "tar -xv")" != "" ]
+(while [ "$(pgrep -f "tar -xv -O")" != "" ]
 do
 
 sleep 2
 
-## Get the directory name
-Directory=$(echo "$Input" | awk -F '.tar' '{print $1}')
-
 ## Calculate size of directory 
-DirectorySizeStart=$(du -chsk --apparent-size "$Directory" | grep "total" | awk '{print$1}')
+OutputSizeStart=$(du -chsk --apparent-size "$OutputFile" | grep "total" | awk '{print$1}')
 
-DirectorySize=$(echo "$DirectorySizeStart" | awk '{print $1}')
+OutputSize=$(echo "$OutputSizeStart" | awk '{print $1}')
 
-TempNumber=$(echo "$DirectorySize / $InputSize * 100" | bc -l)
+TempNumber=$(echo "$OutputSize / $InputSize * 100" | bc -l)
 
 if [ "$(echo "$TempNumber" | grep '.')" != "" ]; then
  TempNumber=$(echo "$TempNumber" | awk -F '.' '{print $1}')
@@ -183,7 +179,7 @@ $OPERATIONCANCELED
  exit
 fi
 
-if [ "$RemoveASC" = "True" ]; then
+if [ "$RemoveGPG" = "True" ]; then
  rm -rf "$Input"
 fi
 

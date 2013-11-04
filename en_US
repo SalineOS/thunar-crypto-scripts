@@ -12,11 +12,11 @@ export CBLANK="Passphrase cannot be blank"
 
 export NOMATCH="Passphrases do not match"
 
-export CREATEV="Encrypting $Directory.tar to $Directory.tar.asc now, please wait."
+export CREATEV="Encrypting $Directory.tar to $Directory.tar.gpg now, please wait."
 
 export CVDONE="Creation of"
 
-export CVDONE1="Completed"
+export CVDONE1="complete"
 
 export TVNOW="now"
 

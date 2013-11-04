@@ -36,8 +36,8 @@ else
 fi
 
 ## Error out if the encrypted file or tarfile exists
-if [ -f "$Directory.tar.asc" ]; then
- yad "${Title[@]}" --window-icon="error" --image="error" --text="\n$Directory.tar.asc $VEXISTS.\n" --button=$"gtk-quit:3"
+if [ -f "$Directory.tar.gpg" ]; then
+ yad "${Title[@]}" --window-icon="error" --image="error" --text="\n$Directory.tar.gpg $VEXISTS.\n" --button=$"gtk-quit:3"
  exit
 elif [ -f "$Directory.tar" ]; then
   yad "${Title[@]}" --window-icon="error" --image="error" --text="\n$Directory.tar $VEXISTS.\n" --button=$"gtk-quit:3"
@@ -130,24 +130,23 @@ TailPID=$(pgrep -f "tail -f /usr/bin/thunar-crypto-lock")
 kill $TailPID
 
 ## Encrypt the newly created tar file with GPG
-echo "${Pass[@]}" | gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --armor --batch --no-tty --yes --passphrase-fd 0 $Directory.tar &
+echo "${Pass[@]}" | gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --batch --no-tty --yes --passphrase-fd 0 $Directory.tar &
 
 ## Start progress bar
 
 sleep 2
 
-(while [ "$(pgrep -f 'gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --armor --batch --no-tty --yes --passphrase-fd 0')" != "" ]
+(while [ "$(pgrep -f 'gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --batch --no-tty --yes --passphrase-fd 0')" != "" ]
 do
 
 sleep 2
 
-ASCSize=$(du -chsk --apparent-size "$Directory.tar.asc" | grep "total" | awk '{print$1}')
+EncryptedSize=$(du -chsk --apparent-size "$Directory.tar.gpg" | grep "total" | awk '{print$1}')
 
 
-## Send a percentage to the yad progress bar and account for files being 25% bigger because of converting to armor
-ASCSize=$(echo "$ASCSize * .74" | bc -l)
+## Send a percentage to the yad progress bar because of converting to armor
 
-TempNumber=$(echo "$ASCSize / $DirectorySize * 100" | bc -l)
+TempNumber=$(echo "$EncryptedSize / $DirectorySize * 100" | bc -l)
 
 if [ "$(echo "$TempNumber" | grep '.')" != "" ]; then
  TempNumber=$(echo "$TempNumber" | awk -F '.' '{print $1}')
@@ -163,7 +162,7 @@ ret="$?"
 if [ "$ret" = "252" ]; then
  pkill -P $(pgrep -f "/usr/bin/thunar-crypto-lock $Directory")
  rm -rf "$Directory.tar"
- rm -rf "$Directory.tar.asc"
+ rm -rf "$Directory.tar.gpg"
  notify-send -u normal -i error -t 35000 "
 $OPERATIONCANCELED
 
@@ -172,7 +171,7 @@ $OPERATIONCANCELED
 elif [ "$ret" = "9" ]; then
  pkill -P $(pgrep -f "/usr/bin/thunar-crypto-lock $Directory")
  rm -rf "$Directory.tar"
- rm -rf "$Directory.tar.asc"
+ rm -rf "$Directory.tar.gpg"
  notify-send -u normal -i error -t 35000 "
 $OPERATIONCANCELED
 
@@ -193,7 +192,7 @@ fi
 
 ## Tell the user we are done. 
 notify-send -u normal -i changes-prevent -t 25000 "
-$CVDONE $Directory.tar.asc $CVDONE1"
+$CVDONE $Directory.tar.gpg $CVDONE1"
 
 # 
 exit
