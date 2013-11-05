@@ -61,7 +61,7 @@ rm -rf "./.$TestFile"
 GetPassphrase () {
 
 ## Get a passphrase from the user
-Pass="$(yad "${Title[@]}" --text="$PASSTEXT" --wrap --hide-text --width="315" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+Pass="$(yad "${Title[@]}" --text="$PASSTEXT" --wrap --hide-text --width="350" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
 
 ret="$?"
 
@@ -80,7 +80,7 @@ fi
 
 
 ## Make the user retype the passphrase. We don't want people losing important information to a typo.
-Pass1="$(yad "${Title[@]}" --text="$PASSTEXT1.\n" --wrap --hide-text --width="315" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+Pass1="$(yad "${Title[@]}" --text="$PASSTEXT1.\n" --wrap --hide-text --width="350" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
 
 ret="$?"
 
