@@ -40,7 +40,7 @@ fi
 GetPassphrase () {
 
 ## Get a passphrase from the user
-Pass="$(yad "${Title[@]}" --text="$DEPASS\n" --wrap --hide-text --width=315 --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+Pass="$(yad "${Title[@]}" --text="$DEPASS\n" --wrap --hide-text --width="325" --height="125" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
 
 ret="$?"
 
@@ -52,7 +52,7 @@ fi
 
 ## The passphrase cannot be blank.
 if [ "$Pass" = "" ]; then
- yad "${Title[@]}" --image="error" --window-icon="error" --text="\n$CBLANK.\n" --button=$"gtk-ok:1"
+ yad "${Title[@]}" --image="error" --width="325" --height="125" --window-icon="error" --text="\n$CBLANK.\n" --button=$"gtk-ok:1"
  GetPassphrase
 fi
 
@@ -62,7 +62,7 @@ fi
 GetPassphrase
 
 ## Ask if we should remove gpg file after decryption
-yad "${Title[@]}" "${Icon[@]}" "${WindowIcon[@]}" --width="285" --wrap --text="$REMOVEASC" --button=$"gtk-no:3" --button=$"gtk-yes:5"
+yad "${Title[@]}" "${Icon[@]}" "${WindowIcon[@]}" --width="325" --wrap --text="$REMOVEASC\n" --button=$"gtk-no:3" --button=$"gtk-yes:5"
 
 ret="$?"
 
@@ -132,13 +132,13 @@ rm -rf ./."$TestFile"
 OutputFile=$(echo "$Input" | awk -F '.tar.gpg' '{print $1}')
 
 ## Decrypt the .tar.gpg file to the current directory.
-echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --no-tty "$Input" | tar -xv -O>>"$OutputFile" &
+echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --no-tty "$Input" | tar -x>>"$OutputFile" &
 
 ## Start progress bar
 
 sleep 3
 
-(while [ "$(pgrep -f "tar -xv -O")" != "" ]
+(while [ "$(pgrep -f "tar -x")" != "" ]
 do
 
 sleep 2

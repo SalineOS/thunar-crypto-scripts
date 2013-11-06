@@ -61,7 +61,7 @@ rm -rf "./.$TestFile"
 GetPassphrase () {
 
 ## Get a passphrase from the user
-Pass="$(yad "${Title[@]}" --text="$PASSTEXT" --wrap --hide-text --width="350" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+Pass="$(yad "${Title[@]}" --text="$PASSTEXT" --wrap --hide-text --height="135" --width="350" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
 
 ret="$?"
 
@@ -80,7 +80,7 @@ fi
 
 
 ## Make the user retype the passphrase. We don't want people losing important information to a typo.
-Pass1="$(yad "${Title[@]}" --text="$PASSTEXT1.\n" --wrap --hide-text --width="350" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
+Pass1="$(yad "${Title[@]}" --text="$PASSTEXT1." --wrap --height="135" --hide-text --width="350" --entry "${WindowIcon[@]}" "${Icon[@]}" --button=$"gtk-cancel:3" --button=$"gtk-ok:2" )"
 
 ret="$?"
 
@@ -101,7 +101,7 @@ fi
 GetPassphrase
 
 ## Ask if we should remove the files after encryption
-yad "${Title[@]}" "${Icon[@]}" --width="275" --wrap --text="$REMOVEFILES" --button=$"gtk-no:3" --button=$"gtk-yes:5"
+yad "${Title[@]}" "${Icon[@]}" --width="350" --wrap --text="$REMOVEFILES\n" --button=$"gtk-no:3" --button=$"gtk-yes:5"
 
 ret="$?"
 
@@ -130,7 +130,7 @@ TailPID=$(pgrep -f "tail -f /usr/bin/thunar-crypto-lock")
 kill $TailPID
 
 ## Encrypt the newly created tar file with GPG
-echo "${Pass[@]}" | gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --batch --no-tty --yes --passphrase-fd 0 $Directory.tar &
+echo "${Pass[@]}" | gpg --no-random-seed-file --cipher-algo TWOFISH --symmetric --batch --no-tty --yes --passphrase-fd 0 "$Directory.tar" &
 
 ## Start progress bar
 
@@ -154,7 +154,7 @@ fi
 
 echo "$TempNumber"
 
-done) | yad "${Title[@]}" --wrap --width="325" --progress "${Icon[@]}" "${WindowIcon[@]}" --text="$CREATEV\n" --auto-close --button=$"gtk-cancel:9"
+done) | yad "${Title[@]}" --wrap --width="325" --progress "${Icon[@]}" "${WindowIcon[@]}" --text="$CREATEV\n\n" --auto-close --button=$"gtk-cancel:9"
 
 ret="$?"
 
