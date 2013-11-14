@@ -132,7 +132,7 @@ rm -rf ./."$TestFile"
 OutputFile=$(echo "$Input" | awk -F '.tar.gpg' '{print $1}')
 
 ## Decrypt the .tar.gpg file to the current directory.
-echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --no-tty "$Input" | tar -x>>"$OutputFile" &
+echo "${Pass[@]}" | gpg --decrypt --batch --yes --passphrase-fd 0 --no-tty "$Input" | tar -x &
 
 ## Start progress bar
 

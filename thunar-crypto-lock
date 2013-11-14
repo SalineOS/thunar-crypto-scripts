@@ -120,7 +120,7 @@ Pass=( "$Pass" )
 ## Tar the directory
 tail -f /usr/bin/thunar-crypto-lock | yad --width="350" --progress "${Title[@]}" "${WindowIcon[@]}" "${Align[@]}" --pulsate --auto-close --no-buttons --text="$CREATEARCHIVE\n" &
 
-tar -c "$Directory" >>"$Directory.tar"
+tar -c "$Directory" -f "$Directory.tar"
 
 sleep 3
 
@@ -144,7 +144,7 @@ sleep 2
 EncryptedSize=$(du -chsk --apparent-size "$Directory.tar.gpg" | grep "total" | awk '{print$1}')
 
 
-## Send a percentage to the yad progress bar because of converting to armor
+## Send a percentage to the yad progress bar
 
 TempNumber=$(echo "$EncryptedSize / $DirectorySize * 100" | bc -l)
 
