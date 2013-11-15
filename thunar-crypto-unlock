@@ -77,6 +77,20 @@ RunDecrypt () {
 ## Get the total size of the gpg file for progress bar coming up
 InputSize=$(du -chsk --apparent-size "$Input" | grep "total" | awk '{print$1}')
 
+## Ensure there is enough free space available for this operation
+
+## Ensure there is enough free space for this operation
+FreeSpace=$(df $PWD --block-size=K | awk '/[0-9]%/{print $(NF-2)}' | awk -F 'K' '{print$1}')
+
+NeededSpace=$(($InputSize + 51200))
+
+DisplaySize=$(($NeededSpace / 1024))
+
+if [ "$NeededSpace" -gt "$FreeSpace" ]; then
+  yad "${Title[@]}" --window-icon="error" --image="error" --width="325" --wrap --button=$"gtk-quit" --text="$NOTENOUGHSPACE $DisplaySize MiB\n"
+ exit
+fi
+
 ## Put password in an array
 Pass=( "$Pass" )
 

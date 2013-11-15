@@ -114,6 +114,18 @@ fi
 ## Get the total size of the directory for progress bar coming up
 DirectorySize=$(du -chsk --apparent-size "$Directory" | grep "total" | awk '{print$1}')
 
+## Ensure there is enough free space for this operation
+FreeSpace=$(df $PWD --block-size=K | awk '/[0-9]%/{print $(NF-2)}' | awk -F 'K' '{print$1}')
+
+NeededSpace=$(($DirectorySize + $DirectorySize + 51200))
+
+DisplaySize=$(($NeededSpace / 1024))
+
+if [ "$NeededSpace" -gt "$FreeSpace" ]; then
+  yad "${Title[@]}" --window-icon="error" --image="error" --width="325" --wrap --button=$"gtk-quit" --text="$NOTENOUGHSPACE $DisplaySize MiB\n"
+ exit
+fi
+
 ## Put password in an array
 Pass=( "$Pass" )
 

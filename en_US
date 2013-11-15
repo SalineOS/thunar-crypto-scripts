@@ -71,3 +71,5 @@ export GENANDCHECK="Generating and checking"
 export HASHESMATCH="File verification complete, checksums match"
 
 export HASHMISMATCH="File verification failed, checksums do not match"
+
+export NOTENOUGHSPACE="Not enough free space available for this operation. You will need a minimum of"
